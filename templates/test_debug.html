@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Status Debug</title>
+    <meta http-equiv="refresh" content="30">
+    <style>
+        body {
+            font-family: 'SF Mono', 'Menlo', monospace;
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        h1 { color: #00d4ff; border-bottom: 2px solid #00d4ff; padding-bottom: 8px; }
+        h2 { color: #ff6b9d; margin-top: 25px; }
+        .status-card {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #00d4ff;
+        }
+        .status-card.busy { border-left-color: #ff0000; }
+        .status-card.free { border-left-color: #00cc00; }
+        .status-card.ooo { border-left-color: #cc00cc; }
+        .label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 18px; font-weight: bold; margin: 2px 0 10px 0; }
+        .value.busy { color: #ff4444; }
+        .value.free { color: #44ff44; }
+        .value.ooo { color: #cc44cc; }
+        .event-row {
+            background: #16213e;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 6px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #333;
+        }
+        .event-row.active { border-left-color: #ff4444; background: #2a1a1a; }
+        .event-row.future { border-left-color: #00d4ff; }
+        .event-row.skipped { opacity: 0.4; border-left-color: #555; }
+        .event-name { font-weight: bold; }
+        .event-time { color: #888; font-size: 13px; }
+        .event-meta { font-size: 11px; color: #666; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .badge-active { background: #ff0000; color: white; }
+        .badge-future { background: #0066cc; color: white; }
+        .badge-skipped { background: #555; color: #999; }
+        .badge-busy { background: #cc6600; color: white; }
+        .badge-oof { background: #6600cc; color: white; }
+        .json-toggle {
+            background: #0a3d62;
+            color: #00d4ff;
+            border: 1px solid #00d4ff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            margin-top: 15px;
+        }
+        .json-toggle:hover { background: #00d4ff; color: #1a1a2e; }
+        .json-block {
+            display: none;
+            background: #0d1117;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .json-block.visible { display: block; }
+        .back-link { color: #00d4ff; text-decoration: none; display: inline-block; margin-top: 20px; }
+        .back-link:hover { text-decoration: underline; }
+        .refresh-note { color: #555; font-size: 12px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Status Debug</h1>
+    <p class="refresh-note">Auto-refreshes every 30 seconds</p>
+
+    <div id="content">Loading...</div>
+
+    <button class="json-toggle" onclick="forceRefresh()" id="refresh-btn">⟳ Force Refresh (ICS + Sheet)</button>
+    <button class="json-toggle" onclick="toggleJson()">Show Raw JSON</button>
+    <div id="json-block" class="json-block"></div>
+
+    <br>
+    <a href="/admin" class="back-link">← Back to Admin</a>
+
+    <script>
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;'
+            })[c]);
+        }
+
+        async function loadDebug() {
+            try {
+                const res = await fetch('/api/debug');
+                const data = await res.json();
+                document.getElementById('json-block').textContent = JSON.stringify(data, null, 2);
+                renderDebug(data);
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<p style="color:red">Error loading: ' + escapeHtml(e.message) + '</p>';
+            }
+        }
+
+        function renderDebug(data) {
+            const status = data.status_result.status;
+            const statusClass = status === 'busy' ? 'busy' : status === 'free' ? 'free' : 'ooo';
+
+            let html = '';
+
+            // Status card
+            html += `<div class="status-card ${statusClass}">`;
+            html += `<div class="label">Current Status</div>`;
+            html += `<div class="value ${statusClass}">${escapeHtml(status.toUpperCase())}</div>`;
+            html += `<div class="label">Location</div>`;
+            html += `<div class="value">${escapeHtml(data.status_result.location)}</div>`;
+            if (data.status_result.return_time) {
+                const rt = new Date(data.status_result.return_time);
+                const label = status === 'busy' ? 'Next Free At' : 'Return Time';
+                html += `<div class="label">${label}</div>`;
+                html += `<div class="value">${rt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</div>`;
+            }
+            html += `<div class="label">As Of</div>`;
+            html += `<div class="value" style="font-size:14px">${new Date(data.now).toLocaleTimeString()}</div>`;
+            html += `</div>`;
+
+            // Active events
+            if (data.active_events.length > 0) {
+                html += `<h2>🔴 Active Now (${data.active_events.length})</h2>`;
+                data.active_events.forEach(e => {
+                    html += renderEvent(e, 'active');
+                });
+            }
+
+            // All events timeline
+            html += `<h2>📅 All Events Today (${data.total_events})</h2>`;
+            data.all_events.forEach(e => {
+                let cls = '';
+                if (e.is_current && !e.skipped_reason) cls = 'active';
+                else if (e.skipped_reason) cls = 'skipped';
+                else if (e.is_future) cls = 'future';
+                html += renderEvent(e, cls);
+            });
+
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function renderEvent(e, cls) {
+            const start = new Date(e.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const end = new Date(e.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const dur = Math.round((new Date(e.end) - new Date(e.start)) / 60000);
+
+            let badges = '';
+            if (e.is_current && !e.skipped_reason) badges += '<span class="badge badge-active">NOW</span>';
+            if (e.is_future) badges += '<span class="badge badge-future">UPCOMING</span>';
+            if (e.skipped_reason) badges += `<span class="badge badge-skipped">SKIP: ${escapeHtml(e.skipped_reason)}</span>`;
+            if (e.busystatus === 'OOF') badges += '<span class="badge badge-oof">OOF</span>';
+            if (e.busystatus === 'TENTATIVE') badges += '<span class="badge badge-skipped">TENTATIVE</span>';
+
+            return `<div class="event-row ${cls}">
+                <div>
+                    <div class="event-name">${escapeHtml(e.name)} ${badges}</div>
+                    <div class="event-time">${start} – ${end} (${dur} min)</div>
+                    <div class="event-meta">busystatus: ${escapeHtml(e.busystatus)} | transparent: ${escapeHtml(e.transparent)} | all_day: ${escapeHtml(e.all_day)}</div>
+                </div>
+            </div>`;
+        }
+
+        function toggleJson() {
+            const block = document.getElementById('json-block');
+            block.classList.toggle('visible');
+            document.querySelector('.json-toggle').textContent = 
+                block.classList.contains('visible') ? 'Hide Raw JSON' : 'Show Raw JSON';
+        }
+
+        async function forceRefresh() {
+            const btn = document.getElementById('refresh-btn');
+            btn.textContent = '⟳ Refreshing...';
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/refresh', { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    btn.textContent = '✅ Refreshed!';
+                    setTimeout(() => { btn.textContent = '⟳ Force Refresh (ICS + Sheet)'; btn.disabled = false; }, 1500);
+                    loadDebug();
+                } else {
+                    btn.textContent = '⚠️ Failed: ' + data.error;
+                    setTimeout(() => { btn.textContent = '⟳ Force Refresh (ICS + Sheet)'; btn.disabled = false; }, 3000);
+                }
+            } catch (e) {
+                btn.textContent = '⚠️ Error: ' + e.message;
+                setTimeout(() => { btn.textContent = '⟳ Force Refresh (ICS + Sheet)'; btn.disabled = false; }, 3000);
+            }
+        }
+
+        loadDebug();
+    </script>
+</body>
+</html>

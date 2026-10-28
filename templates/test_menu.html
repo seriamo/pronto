@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Desk Display - Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #0078d4;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .test-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        a {
+            display: block;
+            padding: 15px 20px;
+            background: white;
+            color: #0078d4;
+            text-decoration: none;
+            border-radius: 5px;
+            border: 2px solid #0078d4;
+            transition: all 0.3s;
+        }
+        a:hover {
+            background: #0078d4;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .busy { background: #ff0000; color: white; }
+        .free { background: #00aa00; color: white; }
+        .ooo { background: #800080; color: white; }
+        .away { background: #EAA302; color: white; }
+        .info {
+            background: #e7f3ff;
+            border-left: 4px solid #0078d4;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Desk Display - Admin</h1>
+    
+    <div class="info">
+        <strong>Note:</strong> Test mode bypasses business hours checks and uses mock data. 
+        Perfect for weekend testing and development!
+    </div>
+
+    <h2>🔴 Busy Status Tests</h2>
+    <div class="test-links">
+        <a href="/admin/busy">
+            <span class="status-badge busy">BUSY</span>
+            In Office (Free in 1hr)
+        </a>
+        <a href="/admin/busy-remote">
+            <span class="status-badge busy">BUSY</span>
+            Remote (Free in 2hrs)
+        </a>
+    </div>
+
+    <h2>🟢 Available Status Tests</h2>
+    <div class="test-links">
+        <a href="/admin/free">
+            <span class="status-badge free">FREE</span>
+            With Next Meeting (Remote)
+        </a>
+        <a href="/admin/free-office">
+            <span class="status-badge free">FREE</span>
+            With Next Meeting (Office)
+        </a>
+        <a href="/admin/free-no-meetings">
+            <span class="status-badge free">FREE</span>
+            No Upcoming Meetings
+        </a>
+    </div>
+
+    <h2>🟣 Out of Office Tests</h2>
+    <div class="test-links">
+        <a href="/admin/ooo">
+            <span class="status-badge ooo">OOO</span>
+            Returning Tomorrow
+        </a>
+        <a href="/admin/ooo-week">
+            <span class="status-badge ooo">OOO</span>
+            Returning Next Week
+        </a>
+    </div>
+
+    <h2>🟡 Away Tests</h2>
+    <div class="test-links">
+        <a href="/admin/away">
+            <span class="status-badge away">AWAY</span>
+            Back Later Today
+        </a>
+        <a href="/admin/away-tomorrow">
+            <span class="status-badge away">AWAY</span>
+            Back Tomorrow Morning
+        </a>
+    </div>
+
+    <h2>⚠️ Error Tests</h2>
+    <div class="test-links">
+        <a href="/admin/stale">
+            <span class="status-badge" style="background:#cc7700;color:white">STALE</span>
+            Calendar Stale Warning
+        </a>
+    </div>
+
+    <h2>📅 Debug Tools</h2>
+    <div class="test-links">
+        <a href="/admin/debug" target="_blank">
+            🔍 Status Debug Dashboard
+        </a>
+        <a href="/admin/messages" target="_blank">
+            💬 Message History
+        </a>
+        <a href="/api/debug" target="_blank">
+            <code>GET /api/debug</code> (Raw JSON)
+        </a>
+        <a href="/api/update-log" target="_blank">
+            🔄 Update History (JSON)
+        </a>
+    </div>
+
+    <h2>🩺 Calendar Health</h2>
+    <div id="health-panel" style="margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 2px solid #0078d4; font-size: 14px;">
+        Loading...
+    </div>
+    <script>
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;'
+            })[c]);
+        }
+
+        async function loadHealth() {
+            try {
+                const r = await fetch('/api/health');
+                const d = await r.json();
+                let html = `<div style="margin-bottom:8px"><strong>Overall:</strong> ${d.stale ? '🔴 STALE' : '🟢 OK'} — Last refresh: ${d.last_refresh ? escapeHtml(new Date(d.last_refresh).toLocaleString()) : 'never'}</div>`;
+                html += `<div style="margin-bottom:8px"><strong>Threshold:</strong> ${escapeHtml(d.threshold_hours)}h · <strong>Calendars:</strong> ${escapeHtml(d.num_calendars)}</div>`;
+                if (d.last_fetch_error) {
+                    const err = d.last_fetch_error;
+                    html += `<div style="margin-bottom:8px;color:#b91c1c"><strong>Last fetch error:</strong> calendar #${escapeHtml(err.calendar)} — ${escapeHtml(err.error)} (${escapeHtml(new Date(err.timestamp).toLocaleString())})</div>`;
+                }
+                for (const c of d.calendars) {
+                    const icon = c.stale ? '🔴' : '🟢';
+                    html += `<div style="padding:4px 0;border-top:1px solid #eee">${icon} <code>${escapeHtml(c.file)}</code> — ${escapeHtml(c.age_human)}</div>`;
+                }
+                document.getElementById('health-panel').innerHTML = html;
+            } catch(e) {
+                document.getElementById('health-panel').textContent = 'Error loading health';
+            }
+        }
+        loadHealth();
+    </script>
+
+    <h2>✈️ OOO Override</h2>
+    <p>Manually set or clear out-of-office status:</p>
+    <div class="test-links">
+        <a href="/api/ooo" target="_blank">
+            <code>GET /api/ooo</code> (Current Status)
+        </a>
+    </div>
+    <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 2px solid #800080;">
+        <strong>Set OOO:</strong>
+        <form id="ooo-form" style="margin-top: 8px; display: flex; gap: 10px; align-items: center;">
+            <label>Return date: <input type="date" id="ooo-date" required></label>
+            <button type="submit" style="padding: 6px 14px; background: #800080; color: white; border: none; border-radius: 4px; cursor: pointer;">Set OOO</button>
+            <button type="button" onclick="clearOOO()" style="padding: 6px 14px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear OOO</button>
+            <span id="ooo-status" style="font-size: 13px;"></span>
+        </form>
+    </div>
+    <script>
+        document.getElementById('ooo-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const d = document.getElementById('ooo-date').value;
+            if (!d) return;
+            const res = await fetch('/api/ooo/set', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({return_date: d}) });
+            const data = await res.json();
+            document.getElementById('ooo-status').textContent = data.ok ? '✅ OOO set!' : '❌ ' + data.error;
+        });
+        async function clearOOO() {
+            const res = await fetch('/api/ooo/set', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action:'clear'}) });
+            const data = await res.json();
+            document.getElementById('ooo-status').textContent = data.ok ? '✅ OOO cleared' : '❌ Error';
+        }
+    </script>
+
+    <h2>🖼️ Backgrounds</h2>
+    <div class="test-links">
+        <a href="/admin/backgrounds" target="_blank">
+            View All Backgrounds Gallery
+        </a>
+    </div>
+
+    <h2>🎯 Live Display</h2>
+    <div class="test-links">
+        <a href="/">
+            Go to Live Display (Real Data)
+        </a>
+    </div>
+
+    <h2>🛠️ Dev Mode</h2>
+    <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 2px solid #0078d4;">
+        <span id="dev-status" style="font-size: 13px;">Checking...</span>
+        <button onclick="toggleDev(true)" style="margin-left: 10px; padding: 6px 14px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer;">Enable (4hrs)</button>
+        <button onclick="toggleDev(false)" style="padding: 6px 14px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Disable</button>
+    </div>
+    <script>
+        async function checkDev() {
+            const r = await fetch('/api/version');
+            const d = await r.json();
+            document.getElementById('dev-status').textContent = d.dev_mode ? '🟢 Dev mode ON' : '⚫ Dev mode OFF';
+        }
+        async function toggleDev(on) {
+            await fetch(on ? '/api/dev-mode' : '/api/dev-mode/off', { method: 'POST' });
+            checkDev();
+        }
+        checkDev();
+    </script>
+</body>
+</html>

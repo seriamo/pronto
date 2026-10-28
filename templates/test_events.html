@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calendar Events - {{ target_date.strftime('%B %d, %Y') }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #0078d4;
+            padding-bottom: 10px;
+        }
+        .date-picker {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .date-picker input {
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #0078d4;
+            border-radius: 4px;
+        }
+        .date-picker button {
+            padding: 8px 20px;
+            font-size: 16px;
+            background: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .date-picker button:hover {
+            background: #005a9e;
+        }
+        .event {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 5px solid #FF0000;
+        }
+        .event.transparent {
+            border-left-color: #ccc;
+            background: #f9f9f9;
+            opacity: 0.7;
+        }
+        .event.tentative {
+            border-left-color: #FFA500;
+            background: #fff8f0;
+            opacity: 0.85;
+        }
+        .event.ooo {
+            border-left-color: #800080;
+            background: #faf0fa;
+        }
+        .event.recurring {
+            border-left-color: #0078d4;
+        }
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .event-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .event-time {
+            color: #666;
+            font-size: 14px;
+        }
+        .event-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .badge-recurring {
+            background: #0078d4;
+            color: white;
+        }
+        .badge-transparent {
+            background: #ccc;
+            color: #666;
+        }
+        .badge-tentative {
+            background: #FFA500;
+            color: white;
+        }
+        .no-events {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 5px;
+            color: #666;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #0078d4;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>📅 Calendar Events - {{ target_date.strftime('%A, %B %d, %Y') }}</h1>
+    
+    <div class="date-picker">
+        <form method="get">
+            <label for="date">View events for date:</label>
+            <input type="date" id="date" name="date" value="{{ target_date.strftime('%Y-%m-%d') }}">
+            <button type="submit">Go</button>
+        </form>
+    </div>
+    
+    <p><strong>Total Events:</strong> {{ events|length }}</p>
+
+    {% if events %}
+        {% for event in events %}
+            {% set is_tentative = event.busystatus == 'TENTATIVE' %}
+            {% set classes = [] %}
+            {% if event.transparent %}{% set _ = classes.append('transparent') %}{% endif %}
+            {% if is_tentative %}{% set _ = classes.append('tentative') %}{% endif %}
+            {% if event.is_ooo %}{% set _ = classes.append('ooo') %}{% endif %}
+            {% if event.is_recurring %}{% set _ = classes.append('recurring') %}{% endif %}
+
+            <div class="event {{ classes|join(' ') }}">
+                <div class="event-header">
+                    <div class="event-name">
+                        {{ event.name }}
+                        {% if event.is_recurring %}<span class="event-badge badge-recurring">RECURRING</span>{% endif %}
+                        {% if event.is_ooo %}<span class="event-badge" style="background: #800080; color: white;">OOO</span>{% endif %}
+                        {% if is_tentative %}<span class="event-badge badge-tentative">TENTATIVE</span>{% endif %}
+                        {% if event.transparent %}<span class="event-badge badge-transparent">FREE/TRANSPARENT</span>{% endif %}
+                    </div>
+                </div>
+                <div class="event-time">
+                    {{ event.start.strftime('%I:%M %p') }} - {{ event.end.strftime('%I:%M %p') }}
+                    ({{ ((event.end - event.start).total_seconds() / 60)|int }} minutes)
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-events">
+            <p>📭 No events found for this date</p>
+        </div>
+    {% endif %}
+
+    <a href="/admin" class="back-link">← Back to Admin</a>
+</body>
+</html>

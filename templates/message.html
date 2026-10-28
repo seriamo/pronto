@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Send a Message to {% if first_name %}{{ first_name }}'s{% else %}the{% endif %} Desk Display</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0A0E1A, #111827, #1A2332);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #F1F5F9;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid #1E293B;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 480px;
+            width: 100%;
+        }
+        h1 { font-size: 24px; margin-bottom: 8px; color: #F1F5F9; }
+        .subtitle { color: #64748B; font-size: 14px; margin-bottom: 30px; }
+        .sender { color: #64748B; font-size: 13px; margin-bottom: 20px; }
+        label { display: block; font-size: 14px; color: #CBD5E1; margin-bottom: 8px; }
+        textarea {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #1E293B;
+            background: rgba(26,35,50,0.8);
+            color: #F1F5F9;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            height: 80px;
+        }
+        textarea:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.12); }
+        .char-count { text-align: right; font-size: 12px; color: #64748B; margin-top: 4px; }
+        .char-count.warn { color: #EF4444; }
+        button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #3B82F6, #1E40AF);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        button:hover { opacity: 0.9; }
+        button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .status.success { display: block; background: rgba(72,199,142,0.15); color: #48c78e; border: 1px solid rgba(72,199,142,0.3); }
+        .status.error { display: block; background: rgba(239,68,68,0.15); color: #EF4444; border: 1px solid rgba(239,68,68,0.3); }
+        .info {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(59,130,246,0.06);
+            font-size: 13px;
+            color: #64748B;
+            line-height: 1.5;
+            border: 1px solid rgba(59,130,246,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>💬 Send a Message</h1>
+        <p class="subtitle">It'll show on {% if first_name %}{{ first_name }}'s{% else %}the{% endif %} desk display for 3 minutes</p>
+        <p class="sender">Sending as: <strong>{{ sender }}</strong></p>
+
+        <label for="msg">Your message</label>
+        <textarea id="msg" maxlength="{{ max_len }}" placeholder="Say something nice! 👋"></textarea>
+        <div class="char-count" id="char-count">0 / {{ max_len }}</div>
+
+        <button id="send-btn" onclick="sendMessage()">Send to Display</button>
+
+        <div class="status" id="status"></div>
+
+        <div class="info">
+            ✨ Your message will appear on the desk display with a fun background for 3 minutes, then return to normal.
+        </div>
+    </div>
+
+    <script>
+        const textarea = document.getElementById('msg');
+        const charCount = document.getElementById('char-count');
+        const maxLen = {{ max_len }};
+
+        textarea.addEventListener('input', () => {
+            const len = textarea.value.length;
+            charCount.textContent = `${len} / ${maxLen}`;
+            charCount.classList.toggle('warn', len > maxLen * 0.9);
+        });
+
+        async function sendMessage() {
+            const btn = document.getElementById('send-btn');
+            const status = document.getElementById('status');
+            const text = textarea.value.trim();
+
+            if (!text) {
+                status.className = 'status error';
+                status.textContent = 'Please enter a message first!';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            status.className = 'status';
+
+            try {
+                const res = await fetch('/msg', {
+                    method: 'POST',
+                    body: new URLSearchParams({ text: text })
+                });
+
+                const data = await res.json();
+
+                if (data.ok) {
+                    status.className = 'status success';
+                    status.textContent = '✅ Message sent! It\'ll appear on the display within 10 seconds.';
+                    textarea.value = '';
+                    charCount.textContent = `0 / ${maxLen}`;
+                } else {
+                    status.className = 'status error';
+                    status.textContent = `❌ ${data.error}`;
+                }
+            } catch (e) {
+                status.className = 'status error';
+                status.textContent = `❌ Failed to send: ${e.message}. Try again.`;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Send to Display';
+        }
+    </script>
+</body>
+</html>

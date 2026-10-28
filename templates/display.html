@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desk Display{% if user_name %} - {{ user_name }}{% endif %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+            background: #000;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            cursor: none !important;
+        }
+
+        /* The display frame — 800x480 fixed, centered on larger screens */
+        .display-frame {
+            width: 800px;
+            height: 480px;
+            position: relative;
+            overflow: hidden;
+            background: white;
+            flex-shrink: 0;
+        }
+
+        body.offline .display-frame {
+            background: black;
+        }
+
+        /* Background image overlays for crossfade */
+        .background-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: opacity 1s ease-in-out;
+            z-index: 1;
+        }
+
+        .background-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.70);
+            z-index: 2;
+        }
+
+        body.offline .background-overlay {
+            display: none;
+        }
+
+        #background-overlay-1 {
+            opacity: 1;
+        }
+
+        #background-overlay-2 {
+            opacity: 0;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            z-index: 3;
+            padding: 16px 33px;
+            padding-bottom: 130px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .offline .container {
+            display: none;
+        }
+
+        /* Header Section */
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 0px;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 26px;
+        }
+
+        .date {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #444;
+            font-size: 30px;
+            white-space: nowrap;
+            text-shadow: 0 2px 8px rgba(255, 255, 255, 0.8), 
+                0 0 20px rgba(255, 255, 255, 0.6);
+        }
+
+        .calendar-icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        /* Spacer to push content to bottom */
+        .spacer.top {
+            flex: 1;
+        }
+
+        .spacer.bottom {
+            flex: 0;
+        }
+
+        /* Main Content */
+        .content {
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: -40px;
+            position: relative;
+            z-index: 5;
+        }
+
+        .location-icon {
+            font-size: 72px;
+            line-height: 1;
+            margin-bottom: 22px;
+        }
+
+        .location-text-container {
+            flex: 1;
+            margin-bottom: 16px;
+            overflow: hidden;
+            max-width: 600px;
+        }
+
+        .greeting {
+            font-size: 60px;
+            color: #323232;
+            margin-top: 50px;
+            margin-bottom: 0px;
+            font-weight: 540;
+            font-family: 'DejaVu Sans', 'Segoe UI', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+            text-shadow: 0 2px 8px rgba(255, 255, 255, 0.8), 
+                         0 0 20px rgba(255, 255, 255, 0.6);
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .greeting.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .greeting:empty,
+        .room-number:empty {
+            display: none;
+        }
+
+        .custom-message {
+            font-size: 60px;
+            color: #323232;
+            margin-top: 50px;
+            margin-bottom: 0px;
+            font-weight: 540;
+            font-family: 'DejaVu Sans', 'Segoe UI', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+            text-shadow: 0 2px 8px rgba(255, 255, 255, 0.8), 
+                         0 0 20px rgba(255, 255, 255, 0.6);
+            position: absolute;
+            top: 92px;
+            left: 33px;
+            right: 33px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .custom-message.active {
+            opacity: 1;
+        }
+
+        .custom-message-wrapper {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .custom-message.scroll .custom-message-wrapper {
+            animation: scroll-text 15s linear infinite;
+        }
+
+        @keyframes scroll-text {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .room-number {
+            font-size: 25px;
+            color: #747373;
+            margin-bottom: 20px;
+            font-weight: 550;
+            padding-left: 97px;
+            text-shadow: 0 1px 4px rgba(255, 255, 255, 0.8), 
+                         0 0 12px rgba(255, 255, 255, 0.5);
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .room-number.hidden {
+            opacity: 0;
+        }
+
+        .location {
+            font-size: 28px;
+            color: #444;
+            margin-bottom: 10px;
+            transition: opacity 0.5s ease-in-out;
+            white-space: nowrap;
+            text-shadow: 0 1px 4px rgba(255, 255, 255, 0.8), 
+                         0 0 12px rgba(255, 255, 255, 0.5);
+        }
+
+        .location.fade-out {
+            opacity: 0;
+        }
+
+        .subtext {
+            font-size: 26px;
+            color: #747474;
+            line-height: 1.4;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 114px;
+            padding: 16px 33px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .status-bar.available {
+            background: #00AA00;
+        }
+
+        .status-bar.busy {
+            background: #FF0000;
+        }
+
+        .status-bar.ooo {
+            background: #800080;
+        }
+
+        .status-bar.away {
+            background: #EAA302;
+        }
+
+        .status-text {
+            font-size: 46px;
+            margin-bottom: 2px;
+        }
+
+        .meeting-text {
+            font-size: 26px;
+            opacity: 0.95;
+        }
+
+        /* Logo */
+        .logo {
+            position: absolute;
+            bottom: 52.5px;
+            right: 39.5px;
+            width: 120px;
+            height: auto;
+            z-index: 15;
+        }
+
+        /* Fade transition for updates */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Loading state */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #666;
+            z-index: 100;
+            background: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Notification bell */
+        .notif-bell {
+            position: relative;
+            cursor: pointer;
+            font-size: 26px;
+            line-height: 1;
+            z-index: 25;
+            -webkit-tap-highlight-color: transparent;
+            text-shadow: 0 2px 8px rgba(255, 255, 255, 0.8), 
+                0 0 20px rgba(255, 255, 255, 0.6);
+        }
+
+        .notif-badge {
+            position: absolute;
+            top: -6px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            font-family: Arial, sans-serif;
+            text-shadow: none;
+        }
+
+        .notif-badge.active {
+            display: flex;
+        }
+
+        /* Notification panel */
+        .notif-panel {
+            position: absolute;
+            top: 50px;
+            right: 16px;
+            width: 340px;
+            max-height: 360px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            z-index: 30;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'DejaVu Sans', 'Segoe UI', Arial, sans-serif;
+        }
+
+        .notif-panel.open {
+            display: flex;
+        }
+
+        .notif-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .notif-panel-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .notif-clear-btn {
+            font-size: 12px;
+            color: #3B82F6;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .notif-clear-btn:active {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .notif-list {
+            overflow-y: auto;
+            flex: 1;
+            max-height: 280px;
+        }
+
+        .notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .notif-item:active {
+            background: rgba(0,0,0,0.04);
+        }
+
+        .notif-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .notif-item-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notif-item-text {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .notif-item.unread .notif-item-text {
+            font-weight: 600;
+        }
+
+        .notif-item-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .notif-item-dismiss {
+            font-size: 18px;
+            color: #bbb;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            flex-shrink: 0;
+            line-height: 1;
+            border-radius: 4px;
+        }
+
+        .notif-item-dismiss:active {
+            background: rgba(0,0,0,0.08);
+            color: #666;
+        }
+
+        .notif-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .notif-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3B82F6;
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+
+        /* Sleeping state for offline/weekend */
+        .sleeping {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            top: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', 'DejaVu Sans Mono', monospace;
+        }
+
+        .sleeping-cat-wrap {
+            position: relative;
+        }
+
+        .sleeping-cat {
+            color: #444;
+            font-size: 6px;
+            line-height: 1.05;
+            white-space: pre;
+            margin-bottom: 12px;
+        }
+
+        .sleeping-text {
+            color: #555;
+            font-size: 20px;
+            font-weight: 300;
+            font-family: 'DejaVu Sans', 'Segoe UI', Arial, sans-serif;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .sleeping-zzz {
+            color: #666;
+            font-size: 16px;
+            animation: zzz 3s ease-in-out infinite;
+            position: absolute;
+            top: -22px;
+            left: 40%;
+            font-family: 'DejaVu Sans', 'Segoe UI', Arial, sans-serif;
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        @keyframes zzz {
+            0%, 100% { opacity: 0.3; transform: translateY(0); }
+            50% { opacity: 0.8; transform: translateY(-6px); }
+        }
+
+        body.offline .sleeping {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <div class="display-frame">
+    <div class="background-overlay" id="background-overlay-1"></div>
+    <div class="background-overlay" id="background-overlay-2"></div>
+    <div class="loading">Loading...</div>
+    <div class="sleeping">
+        <div class="sleeping-cat-wrap">
+            <div class="sleeping-zzz"><span style="font-size:11px;opacity:0.5">z</span> <span style="font-size:14px;opacity:0.7;position:relative;bottom:6px">z</span> <span style="font-size:18px;position:relative;bottom:14px">Z</span></div>
+            <div class="sleeping-cat">⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣴⣶⣶⠿⠿⠿⠿⠿⠿⠿⢷⣶⣶⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣶⡾⠿⠛⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠙⠻⠿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣾⠿⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢦⡀⠀⠀⠀⠀⠀⠀⠉⠛⢿⣶⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠏⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⣄⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⢿⣦⡀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣦⡀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣤⣶⣶⣶⣶⣶⡿⠟⠋⠚⢋⣭⣭⣽⠿⠷⠶⢶⣦⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣿⣦⡀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣠⣴⡾⠟⠋⠉⠀⠀⠀⠀⠀⠁⠀⠀⠀⣀⣀⡉⠻⣄⠀⠀⠀⠀⠀⠉⠙⠻⠶⣦⣤⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣷⡀⠀⠀
+⢀⣀⣠⣤⣶⠿⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⢿⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠙⠛⢻⣷⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣷⡀⠀
+⠻⣿⡉⠁⢀⣠⣤⣀⠀⠀⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣠⡴⠋⠉⠉⢀⣼⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣧⠀
+⠀⠸⣿⣆⠀⠀⠀⠈⠙⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠄⠀⠀⠀⠀⠀⠹⣿⠁⠀⠀⠀⣠⡾⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⡆
+⠀⠀⠈⠻⣦⣀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⠁⠀⠀⠀⠀⠀⠀⠀⠹⣇⣀⣴⡾⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣗
+⠀⠀⠀⠀⠈⠛⠷⣶⣾⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿
+⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠠⣶⠾⠶⠶⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⡶⠟⠻⠷⣦⠀⢹⡆⠀⠀⠀⠀⠀⠀⠐⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⢸⣿
+⠀⠀⠀⠀⠀⠀⠀⢰⡟⠀⠀⠀⠀⠀⠀⠀⠙⣷⠀⠀⢀⣀⣀⡀⠀⢠⡿⠁⠀⠀⠀⠀⠀⠀⠸⣧⠀⠀⠀⠀⠀⠀⠀⠸⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡼⠁⠀⠀⠀⠀⠀⠀⢸⣿
+⠀⠀⠀⠀⠀⠀⢰⡟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⢀⣀⣀⣄⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⣻⡧⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⢀⣤⠾⠋⠀⠀⠀⠀⠀⠀⠀⠀⣼⡇
+⠀⠀⠀⠀⠀⠀⠈⢿⣗⠀⠀⠀⠀⠀⠀⣀⣀⣾⣀⠸⣯⣍⣉⣉⡿⠀⣘⣦⣀⣀⣀⡀⠀⢠⣾⠏⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⢀⣠⣴⠾⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⡿⠀
+⠀⠀⠀⠀⠀⠀⠀⢀⣽⠿⣦⣤⣐⠊⡩⠟⣻⣿⣎⣀⠀⣉⣿⡉⠀⢀⣴⢿⣙⠒⢦⣤⣴⠟⠁⠀⠀⠀⠀⠀⣀⣀⣠⣴⣿⠶⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⡿⠁⠀
+⠀⠀⠀⠀⠀⢀⣼⠟⡽⠀⣠⣭⡿⠿⠟⠛⠛⠛⠛⠛⠛⣿⠛⠛⠿⠿⠷⠶⠿⠿⠿⠿⠷⠶⠶⠶⠾⠟⠛⠛⠛⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⠟⠁⠀⠀
+⠀⠀⠀⠀⠀⣾⣟⢸⣧⣾⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣴⡾⠟⠁⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠙⠿⢾⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣤⣴⡶⠿⠛⠉⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣦⣤⣤⣤⣶⡶⠶⠶⠿⠿⠿⠿⠿⠿⠿⠷⠶⠶⠶⢶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⡶⠶⠿⠿⠛⠛⠋⠉⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀</div>
+        </div>
+        <div class="sleeping-text">Sleeping. See you tomorrow!</div>
+    </div>
+    
+    <div class="container" style="display: none;">
+        <div class="header">
+            <div class="header-row">
+                <span style="visibility: hidden;">placeholder</span>
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div class="date">
+                        <span class="calendar-icon">🗓️</span>
+                        <span id="current-date"></span>
+                    </div>
+                    <div class="notif-bell" id="notif-bell" onclick="toggleNotifPanel()">
+                        🔔
+                        <div class="notif-badge" id="notif-badge">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Panel -->
+            <div class="notif-panel" id="notif-panel">
+                <div class="notif-panel-header">
+                    <span class="notif-panel-title">Notifications</span>
+                    <button class="notif-clear-btn" id="notif-clear-btn" onclick="clearAllNotifs()">Clear all</button>
+                </div>
+                <div class="notif-list" id="notif-list">
+                    <div class="notif-empty">No notifications</div>
+                </div>
+            </div>
+            <div class="greeting">{% if first_name %}👋 Hi, I'm {{ first_name }}{% endif %}</div>
+            <div class="custom-message" id="custom-message"></div>
+            <div class="room-number">{% if room_number %}You're in {{ room_number }}{% endif %}</div>
+        </div>
+
+        <div class="spacer top"></div>
+
+        <div class="content">
+            <div class="location-icon" id="location-icon"></div>
+            <div class="location-text-container">
+                <div class="location" id="location-text"></div>
+                <div class="subtext" id="subtext"></div>
+            </div>
+        </div>
+
+        <div class="spacer bottom"></div>
+
+        <div class="status-bar" id="status-bar">
+            <div class="status-text" id="status-text"></div>
+            <div class="meeting-text" id="meeting-text"></div>
+        </div>
+
+        <img {% if logo_url %}src="{{ logo_url }}"{% else %}style="opacity:0"{% endif %} alt="Logo" class="logo" id="logo-img">
+    </div>
+    </div><!-- .display-frame -->
+
+    <script>
+        const LOGO_URL = {{ logo_url|tojson }};
+        const QR_URL = {{ qr_url|tojson }};
+        const EASTER_EGG_MESSAGE = {{ easter_egg_message|tojson }};
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;'
+            })[c]);
+        }
+
+        // Format date
+        function formatDate() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return now.toLocaleDateString('en-US', options);
+        }
+
+        // Update display with status data
+        function updateDisplay(data) {
+            const container = document.querySelector('.container');
+            const loading = document.querySelector('.loading');
+            const body = document.body;
+
+            // Hard sleep 8pm-6am — screen off regardless of status (unless dev mode)
+            const hour = new Date().getHours();
+            if ((hour >= 20 || hour < 6) && !window._devMode) {
+                loading.style.display = 'none';
+                body.classList.add('offline');
+                container.style.display = 'none';
+                return;
+            }
+
+            // Check if outside business hours (6am-8pm awake, but only show status during 8am-6pm)
+            if (!data.business_hours && data.status !== 'ooo' && data.status !== 'away') {
+                loading.style.display = 'none';
+                body.classList.add('offline');
+                container.style.display = 'none';
+                return;
+            }
+
+            // Handle loading state - check BEFORE hiding loading screen
+            if (data.status === 'loading') {
+                // Keep loading screen visible, update with partial data
+                loading.style.display = 'flex';
+                container.style.display = 'none';
+                
+                const locationIconEl = document.getElementById('location-icon');
+                const locationEl = document.getElementById('location');
+                const subtextEl = document.getElementById('subtext');
+                
+                // If we have location data, show it in loading screen
+                if (data.location && data.location !== 'loading') {
+                    const locationConfig = {
+                        wfo: { icon: '🏢', messages: ['Working from office'] },
+                        wfh: { icon: '🏠', messages: ['Working from home'] },
+                        pto: { icon: '🏖️', messages: ['Out of office'] },
+                        home: { icon: '🏠', messages: ['Home'] }
+                    };
+                    const config = locationConfig[data.location] || locationConfig.home;
+                    const loadingMessage = document.querySelector('.loading p');
+                    loadingMessage.textContent = `${config.icon} ${config.messages[0]} • Loading calendar...`;
+                } else {
+                    const loadingMessage = document.querySelector('.loading p');
+                    loadingMessage.textContent = 'Loading...';
+                }
+                return;
+            }
+
+            // Normal display - hide loading, show container
+            loading.style.display = 'none';
+            body.classList.remove('offline');
+            container.style.display = 'flex';
+
+            // Update date
+            document.getElementById('current-date').textContent = formatDate();
+
+            // Update location icon and messages based on status
+            const locationIconEl = document.getElementById('location-icon');
+            const locationEl = document.getElementById('location-text');
+            const subtextEl = document.getElementById('subtext');
+
+            // Define location configurations
+            const locationConfig = {
+                ooo: {
+                    icon: '✈️',
+                    messages: [
+                        "I'm currently away from the office",
+                        "Feel free to use my desk",
+                        "Please leave things as you found them"
+                    ]
+                },
+                away: {
+                    icon: '🌇',
+                    messages: [
+                        "I'm currently away",
+                        "Feel free to use my desk",
+                        "Please leave things as you found them"
+                    ]
+                },
+                office: {
+                    icon: '🏢',
+                    messages: [
+                        "I'm working from the office today",
+                        "Feel free to say hi!"
+                    ]
+                },
+                home: {
+                    icon: '🏠',
+                    messages: [
+                        "I'm working from home today",
+                        "Feel free to use my desk",
+                        "Please leave things as you found them"
+                    ]
+                }
+            };
+            const locationKey = data.status === 'ooo' ? 'ooo' : data.status === 'away' ? 'away' : data.location;
+            const config = locationConfig[locationKey] || locationConfig.home;
+            
+            locationIconEl.textContent = config.icon;
+            window.currentLocationMessages = config.messages;
+            window.currentLocationIndex = 0;
+            locationEl.textContent = config.messages[0];
+            subtextEl.textContent = "";
+
+            // Update status bar
+            const statusBar = document.getElementById('status-bar');
+            const statusText = document.getElementById('status-text');
+            const meetingText = document.getElementById('meeting-text');
+
+            statusBar.className = 'status-bar'; // Reset classes
+
+            if (data.status === 'ooo') {
+                statusBar.classList.add('ooo');
+                statusText.textContent = 'Out of office';
+                if (data.return_time) {
+                    const backAt = new Date(data.return_time);
+                    const today = new Date();
+                    const isTomorrow = new Date(today.getTime() + 86400000).toDateString() === backAt.toDateString();
+                    meetingText.textContent = isTomorrow
+                        ? 'Back tomorrow'
+                        : `Back on ${backAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`;
+                } else {
+                    meetingText.textContent = '';
+                }
+            } else if (data.status === 'away') {
+                statusBar.classList.add('away');
+                statusText.textContent = 'Away';
+                if (data.return_time) {
+                    const backAt = new Date(data.return_time);
+                    const today = new Date();
+                    const isToday = backAt.toDateString() === today.toDateString();
+                    const isTomorrow = new Date(today.getTime() + 86400000).toDateString() === backAt.toDateString();
+                    if (isToday) {
+                        meetingText.textContent = `Back at ${backAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                    } else if (isTomorrow) {
+                        meetingText.textContent = `Back tomorrow at ${backAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                    } else {
+                        meetingText.textContent = `Back on ${backAt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`;
+                    }
+                } else {
+                    meetingText.textContent = '';
+                }
+            } else if (data.status === 'busy') {
+                statusBar.classList.add('busy');
+                statusText.textContent = 'Busy';
+                if (data.return_time) {
+                    const freeAt = new Date(data.return_time);
+                    const today = new Date();
+                    const isToday = freeAt.toDateString() === today.toDateString();
+                    if (isToday) {
+                        meetingText.textContent = `Next free at ${freeAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                    } else {
+                        meetingText.textContent = `Next free ${freeAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${freeAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                    }
+                } else {
+                    meetingText.textContent = '';
+                }
+            } else {
+                statusBar.classList.add('available');
+                statusText.textContent = 'Available';
+                meetingText.textContent = data.meeting?.start 
+                    ? `Next meeting at ${new Date(data.meeting.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+                    : '';
+            }
+
+            // Calendar stale → notification bell
+            if (data.calendar_stale) {
+                addNotif('calendar', '⚠️', 'Calendar error · See admin page', 'system');
+            } else {
+                removeNotifByType('calendar');
+            }
+            // Network is OK if we got here
+            removeNotifByType('network');
+
+            // Add fade-in animation
+            container.classList.remove('fade-in');
+            void container.offsetWidth; // Trigger reflow
+            container.classList.add('fade-in');
+        }
+
+        // Fetch status from API
+        async function fetchStatus() {
+            try {
+                const testMatch = window.location.pathname.match(/^\/admin\/(.+)$/);
+                const apiUrl = testMatch ? `/api/test/${testMatch[1]}` : '/api/status';
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                removeNotifByType('network');
+                updateDisplay(data);
+            } catch (error) {
+                console.error('Error fetching status:', error);
+                addNotif('network', '⚠️', 'Network offline', 'system');
+            }
+        }
+
+        // Rotate location messages with fade effect
+        function rotateLocation() {
+            const locationEl = document.getElementById('location-text');
+            if (!locationEl || !window.currentLocationMessages) return;
+
+            locationEl.classList.add('fade-out');
+            setTimeout(() => {
+                window.currentLocationIndex = (window.currentLocationIndex + 1) % window.currentLocationMessages.length;
+                locationEl.textContent = window.currentLocationMessages[window.currentLocationIndex];
+                locationEl.classList.remove('fade-out');
+            }, 500);
+        }
+
+        // Show background image with smooth crossfade
+        let currentOverlay = 1; // Track which overlay is currently visible
+        let _specialModeActive = false; // Track if easter egg or message is showing
+        let _specialModeTimer = null;
+        let _savedLocationMessages = null; // Store original location messages for restore
+        
+        function showBackgroundMessage(imageUrl, customMessage = null, duration = null, opts = {}) {
+            const overlay1 = document.getElementById('background-overlay-1');
+            const overlay2 = document.getElementById('background-overlay-2');
+            const greeting = document.querySelector('.greeting');
+            const roomNumber = document.querySelector('.room-number');
+            const customMessageEl = document.getElementById('custom-message');
+            const logoImg = document.getElementById('logo-img');
+            const locationEl = document.getElementById('location-text');
+            
+            // Clear any pending auto-revert timer
+            if (_specialModeTimer) {
+                clearTimeout(_specialModeTimer);
+                _specialModeTimer = null;
+            }
+            
+            // Determine which overlay to fade in
+            const nextOverlay = currentOverlay === 1 ? 2 : 1;
+            const targetOverlay = nextOverlay === 1 ? overlay1 : overlay2;
+            const currentOverlayEl = currentOverlay === 1 ? overlay1 : overlay2;
+            
+            // Set the new image on the hidden overlay
+            targetOverlay.style.backgroundImage = `url('${imageUrl}')`;
+            
+            // Crossfade: fade out current, fade in new
+            currentOverlayEl.style.opacity = '0';
+            targetOverlay.style.opacity = '1';
+            
+            // Update tracking
+            currentOverlay = nextOverlay;
+
+            const isSpecial = !!(customMessage || opts.showQR);
+
+            // Swap logo to QR code when showing easter egg/message content
+            if (isSpecial && QR_URL) {
+                logoImg.src = QR_URL;
+            } else if (LOGO_URL) {
+                logoImg.src = LOGO_URL;
+            }
+            logoImg.style.width = '120px';
+            
+            // Handle custom message
+            if (customMessage) {
+                // Save original location messages on first activation
+                if (!_specialModeActive && window.currentLocationMessages) {
+                    _savedLocationMessages = [...window.currentLocationMessages];
+                }
+                _specialModeActive = true;
+
+                // Hide greeting and room number
+                greeting.classList.add('hidden');
+                roomNumber.classList.add('hidden');
+                
+                // Set the message wrapped for scrolling
+                const messageContent = `<span class="custom-message-wrapper">${customMessage} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${customMessage}</span>`;
+                customMessageEl.innerHTML = messageContent;
+                
+                // Make visible first to measure
+                customMessageEl.classList.add('active');
+                
+                // Check if text needs scrolling by measuring actual width
+                setTimeout(() => {
+                    const messageWrapper = customMessageEl.querySelector('.custom-message-wrapper');
+                    const containerWidth = customMessageEl.offsetWidth;
+                    const contentWidth = messageWrapper.offsetWidth / 2;
+                    
+                    if (contentWidth > containerWidth) {
+                        customMessageEl.classList.add('scroll');
+                    } else {
+                        customMessageEl.classList.remove('scroll');
+                        // customMessage is pre-escaped HTML (server-side for messages, escapeHtml for local text)
+                        customMessageEl.innerHTML = customMessage;
+                    }
+                }, 50);
+
+                // Override location text — rotate sender + QR prompt
+                const specialMessages = [];
+                if (opts.senderName) specialMessages.push(`From ${opts.senderName}`);
+                if (QR_URL) specialMessages.push('Scan the QR code to send a message!');
+                if (locationEl && specialMessages.length) {
+                    window.currentLocationMessages = specialMessages;
+                    window.currentLocationIndex = 0;
+                    locationEl.textContent = specialMessages[0];
+                }
+            } else {
+                // Reverting to normal
+                _specialModeActive = false;
+
+                // Show greeting and room number
+                greeting.classList.remove('hidden');
+                roomNumber.classList.remove('hidden');
+                customMessageEl.classList.remove('active');
+                customMessageEl.classList.remove('scroll');
+
+                // Restore original location messages
+                if (_savedLocationMessages && locationEl) {
+                    window.currentLocationMessages = _savedLocationMessages;
+                    window.currentLocationIndex = 0;
+                    locationEl.textContent = _savedLocationMessages[0];
+                    _savedLocationMessages = null;
+                }
+            }
+            
+            // Auto-revert to default after duration (if specified)
+            if (duration) {
+                _specialModeTimer = setTimeout(() => {
+                    _specialModeTimer = null;
+                    showBackgroundMessage(getSeasonalBackground());
+                }, duration);
+            }
+        }
+        
+        // Dismiss active easter egg or message — reverts to normal display
+        function dismissSpecialMode() {
+            if (!_specialModeActive) return false;
+            _dismissedMessageText = _lastMessageText; // Remember what we dismissed
+            showBackgroundMessage(getSeasonalBackground());
+            return true;
+        }
+
+        // ─── Notification Bell System ───
+        let _notifications = [];
+        let _notifIdCounter = 0;
+
+        function addNotif(type, icon, text, sender) {
+            // For system alerts (calendar, network), replace existing of same type
+            const existing = _notifications.findIndex(n => n.type === type);
+            if (existing >= 0) return; // Already have this alert
+
+            _notifications.push({
+                id: ++_notifIdCounter,
+                type: type,
+                icon: icon,
+                text: text,
+                sender: sender,
+                time: new Date(),
+                unread: true,
+            });
+            updateNotifBadge();
+        }
+
+        function removeNotifByType(type) {
+            const before = _notifications.length;
+            _notifications = _notifications.filter(n => n.type !== type);
+            if (_notifications.length !== before) updateNotifBadge();
+        }
+
+        function removeNotifById(id) {
+            _notifications = _notifications.filter(n => n.id !== id);
+            updateNotifBadge();
+            renderNotifList();
+        }
+
+        function clearAllNotifs() {
+            // Keep system alerts (they auto-resolve), clear messages
+            _notifications = _notifications.filter(n => n.type === 'calendar' || n.type === 'network');
+            updateNotifBadge();
+            renderNotifList();
+        }
+
+        function updateNotifBadge() {
+            const badge = document.getElementById('notif-badge');
+            const count = _notifications.length;
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.toggle('active', count > 0);
+        }
+
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notif-panel');
+            const isOpen = panel.classList.toggle('open');
+            if (isOpen) {
+                // Mark all as read when opening
+                _notifications.forEach(n => n.unread = false);
+                updateNotifBadge();
+                renderNotifList();
+            }
+        }
+
+        function renderNotifList() {
+            const list = document.getElementById('notif-list');
+            if (_notifications.length === 0) {
+                list.innerHTML = '<div class="notif-empty">No notifications</div>';
+                return;
+            }
+            let html = '';
+            // Show newest first
+            const sorted = [..._notifications].reverse();
+            for (const n of sorted) {
+                const timeStr = _formatTimeAgo(n.time);
+                const unreadClass = n.unread ? ' unread' : '';
+                const senderLabel = n.sender === 'system' ? '' : `<strong>${escapeHtml(n.sender)}</strong> · `;
+                html += `<div class="notif-item${unreadClass}">
+                    <span class="notif-item-icon">${n.icon}</span>
+                    <div class="notif-item-body">
+                        <div class="notif-item-text">${senderLabel}${n.text}</div>
+                        <div class="notif-item-time">${timeStr}</div>
+                    </div>
+                    ${n.unread ? '<div class="notif-dot"></div>' : ''}
+                    <button class="notif-item-dismiss" onclick="event.stopPropagation();removeNotifById(${n.id})">✕</button>
+                </div>`;
+            }
+            list.innerHTML = html;
+        }
+
+        function _formatTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            return `${hours}h ago`;
+        }
+
+        // Close panel when tapping outside
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('notif-panel');
+            const bell = document.getElementById('notif-bell');
+            if (panel.classList.contains('open') && !panel.contains(e.target) && !bell.contains(e.target)) {
+                panel.classList.remove('open');
+            }
+        });
+
+        // Determine appropriate background based on season and holidays
+        function getSeasonalBackground() {
+            const now = new Date();
+            const month = now.getMonth() + 1; // 1-12
+            const day = now.getDate();
+            const year = now.getFullYear();
+            
+            // Helper function to check if date is in range
+            function isInDateRange(startMonth, startDay, endMonth, endDay) {
+                const currentDate = month * 100 + day;
+                const startDate = startMonth * 100 + startDay;
+                const endDate = endMonth * 100 + endDay;
+                
+                // Handle year wrap-around (e.g., Dec 30 - Jan 3)
+                if (startDate > endDate) {
+                    return currentDate >= startDate || currentDate <= endDate;
+                }
+                return currentDate >= startDate && currentDate <= endDate;
+            }
+            
+            // Holiday checks (highest priority - checked first)
+            
+            // Christmas Season: Dec 11 - Jan 1
+            if (isInDateRange(12, 11, 1, 1)) {
+                return '/static/christmas.png';
+            }
+            
+            // New Year's: Dec 30 - Jan 3
+            if (isInDateRange(12, 30, 1, 3)) {
+                return '/static/newyears.png';
+            }
+            
+            // Fourth of July Week: June 30 - July 7
+            if (isInDateRange(6, 30, 7, 7)) {
+                return '/static/fourthofjuly.png';
+            }
+            
+            // Halloween: Oct 29 - Oct 31
+            if (isInDateRange(10, 29, 10, 31)) {
+                return '/static/halloween.png';
+            }
+            
+            // Thanksgiving Week: Calculate 4th Thursday of November
+            if (month === 11) {
+                const thanksgiving = getNthWeekdayOfMonth(year, 11, 4, 4); // 4th Thursday
+                const thanksgivingDate = thanksgiving.getDate();
+                // Week of Thanksgiving (Mon before through Sun after)
+                const weekStart = thanksgivingDate - ((thanksgiving.getDay() + 6) % 7); // Previous Monday
+                const weekEnd = weekStart + 6; // Following Sunday
+                if (day >= weekStart && day <= weekEnd) {
+                    return '/static/thanksgiving.png';
+                }
+            }
+            
+            // Memorial Day: Last Monday of May
+            if (month === 5) {
+                const memorialDay = getLastWeekdayOfMonth(year, 5, 1); // Last Monday
+                const memorialDate = memorialDay.getDate();
+                if (day >= memorialDate - 2 && day <= memorialDate) {
+                    return '/static/memorialday.png';
+                }
+            }
+            
+            // Labor Day: First Monday of September
+            if (month === 9) {
+                const laborDay = getNthWeekdayOfMonth(year, 9, 1, 1); // 1st Monday
+                const laborDate = laborDay.getDate();
+                if (day >= laborDate - 2 && day <= laborDate) {
+                    return '/static/laborday.png';
+                }
+            }
+            
+            // Valentine's Day: Feb 13-14
+            if (isInDateRange(2, 13, 2, 14)) {
+                return '/static/valentines.png';
+            }
+            
+            // St. Patrick's Day: Mar 16-17
+            if (isInDateRange(3, 16, 3, 17)) {
+                return '/static/stpatricks.png';
+            }
+            
+            // Easter: Computus algorithm (Anonymous Gregorian)
+            function getEasterSunday(y) {
+                const a = y % 19, b = Math.floor(y/100), c = y % 100;
+                const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+                const g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15) % 30;
+                const i = Math.floor(c/4), k = c % 4;
+                const l = (32+2*e+2*i-h-k) % 7;
+                const m = Math.floor((a+11*h+22*l)/451);
+                const mo = Math.floor((h+l-7*m+114)/31);
+                const da = ((h+l-7*m+114) % 31) + 1;
+                return new Date(y, mo-1, da);
+            }
+            const easter = getEasterSunday(year);
+            const easterMonth = easter.getMonth() + 1;
+            const easterDay = easter.getDate();
+            if (month === easterMonth && day >= easterDay - 3 && day <= easterDay + 1) {
+                return '/static/easter.png';
+            }
+            
+            // Seasonal backgrounds (fallback)
+            
+            // Winter: Dec 1 - Feb 28/29
+            if (month === 12 || month === 1 || month === 2) {
+                return '/static/winter.png';
+            }
+            
+            // Spring: Mar 1 - May 31
+            if (month >= 3 && month <= 5) {
+                return '/static/spring.png';
+            }
+            
+            // Summer: Jun 1 - Aug 31
+            if (month >= 6 && month <= 8) {
+                return '/static/summer.png';
+            }
+            
+            // Fall: Sep 1 - Nov 30
+            if (month >= 9 && month <= 11) {
+                return '/static/fall.png';
+            }
+            
+            // Default fallback
+            return '/static/summer.png';
+        }
+        
+        // Helper: Get nth weekday of month (e.g., 4th Thursday)
+        function getNthWeekdayOfMonth(year, month, weekday, n) {
+            const firstDay = new Date(year, month - 1, 1);
+            const firstWeekday = firstDay.getDay();
+            const daysUntilWeekday = (weekday - firstWeekday + 7) % 7;
+            const targetDate = 1 + daysUntilWeekday + (n - 1) * 7;
+            return new Date(year, month - 1, targetDate);
+        }
+        
+        // Helper: Get last weekday of month (e.g., last Monday)
+        function getLastWeekdayOfMonth(year, month, weekday) {
+            const lastDay = new Date(year, month, 0); // Last day of month
+            const lastWeekday = lastDay.getDay();
+            const daysBack = (lastWeekday - weekday + 7) % 7;
+            return new Date(year, month - 1, lastDay.getDate() - daysBack);
+        }
+
+        // Initial load — fetch dev mode first, then status
+        fetch('/api/version').then(r => r.json()).then(d => {
+            window._devMode = !!d.dev_mode;
+            _knownVersion = d.v;
+        }).catch(() => {}).finally(() => fetchStatus());
+
+        // Set default background based on season/holiday
+        const defaultBackground = getSeasonalBackground();
+        document.getElementById('background-overlay-1').style.backgroundImage = `url('${defaultBackground}')`;
+
+        // Refresh every 3 minutes (180 seconds) - except in test mode
+        if (!window.location.pathname.startsWith('/admin')) {
+            setInterval(fetchStatus, 180000);
+
+            // Poll /api/version every 10s — reload page when a force refresh is triggered
+            let _knownVersion = null;
+            window._devMode = false;
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/version');
+                    const data = await res.json();
+                    window._devMode = !!data.dev_mode;
+                    if (_knownVersion === null) { _knownVersion = data.v; return; }
+                    if (data.v !== _knownVersion) {
+                        console.log('Force refresh detected, reloading...');
+                        location.reload();
+                    }
+                } catch (e) { /* ignore */ }
+            }, 10000);
+
+            // Poll /api/message every 10s — show messages from coworkers
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/message');
+                    const data = await res.json();
+                    if (data.active && data.text !== _lastMessageText && data.text !== _dismissedMessageText) {
+                        // New message replacing old one — send old to bell if it wasn't dismissed
+                        if (_lastMessageText && _lastMessageText !== _dismissedMessageText) {
+                            addNotif('msg-' + Date.now(), '💬', _lastMessageText, _lastMessageSender || 'Someone');
+                        }
+                        _lastMessageText = data.text;
+                        _dismissedMessageText = null;
+                        _lastMessageSender = data.sender_name || null;
+                        showBackgroundMessage(randomEasterEgg(), data.text, null, { senderName: _lastMessageSender });
+                    } else if (!data.active && _lastMessageText) {
+                        // Message expired — if it wasn't dismissed, add to bell
+                        if (!_dismissedMessageText || _dismissedMessageText !== _lastMessageText) {
+                            addNotif('msg-' + Date.now(), '💬', _lastMessageText, _lastMessageSender || 'Someone');
+                        }
+                        _lastMessageText = null;
+                        _dismissedMessageText = null;
+                        _lastMessageSender = null;
+                        showBackgroundMessage(getSeasonalBackground());
+                    }
+                } catch (e) { /* ignore */ }
+            }, 10000);
+        }
+
+        // Rotate location text every 10 seconds
+        setInterval(rotateLocation, 10000);
+
+        // Preload easter egg image list (images live in static/easter-eggs/, which is gitignored)
+        let _easterEggImages = [];
+        let _lastMessageText = null;
+        let _dismissedMessageText = null;
+        let _lastMessageSender = null; // Track dismissed message to prevent re-show
+        fetch('/api/easter-eggs').then(r => r.json()).then(data => {
+            if (data.images && data.images.length > 0) _easterEggImages = data.images;
+        }).catch(() => {});
+
+        function randomEasterEgg() {
+            if (_easterEggImages.length === 0) return getSeasonalBackground();
+            const img = _easterEggImages[Math.floor(Math.random() * _easterEggImages.length)];
+            return `/static/easter-eggs/${encodeURIComponent(img)}`;
+        }
+
+        // Double-tap/click on logo: dismiss if special mode active, else trigger easter egg
+        const logo = document.querySelector('.logo');
+        let lastTap = 0;
+        
+        logo.addEventListener('click', (e) => {
+            const currentTime = new Date().getTime();
+            const tapGap = currentTime - lastTap;
+            
+            if (tapGap < 500 && tapGap > 0) {
+                if (_specialModeActive) {
+                    // Dismiss active easter egg or message
+                    dismissSpecialMode();
+                } else {
+                    showBackgroundMessage(
+                        randomEasterEgg(),
+                        escapeHtml(EASTER_EGG_MESSAGE),
+                        20000,
+                        { showQR: true }
+                    );
+                }
+            }
+            
+            lastTap = currentTime;
+        });
+    </script>
+</body>
+</html>
