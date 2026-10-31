@@ -4,7 +4,7 @@
 
 It reads your Outlook/Exchange calendar and shows 🟢 *Available*, 🔴 *Busy until 2:30*, 🟡 *Away* or 🟣 *Out of office*. Coworkers can scan a QR code and leave you a note that pops up on the screen.
 
-<!-- Demo video: coming soon -->
+![Pronto on a desk showing Busy, next free at 2:30 PM](docs/images/pronto-hero.jpg)
 
 ## Features
 
