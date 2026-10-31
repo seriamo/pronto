@@ -301,6 +301,14 @@
             z-index: 15;
         }
 
+        /* QR codes sit on a white tile so they stay scannable on any background */
+        .logo.qr {
+            background: #fff;
+            padding: 8px;
+            border-radius: 10px;
+            box-sizing: border-box;
+        }
+
         /* Fade transition for updates */
         .fade-in {
             animation: fadeIn 0.3s ease-in;
@@ -631,7 +639,8 @@
             <div class="meeting-text" id="meeting-text"></div>
         </div>
 
-        <img {% if logo_url %}src="{{ logo_url }}"{% else %}style="opacity:0"{% endif %} alt="Logo" class="logo" id="logo-img">
+        {% set badge_url = logo_url or qr_url %}
+        <img {% if badge_url %}src="{{ badge_url }}"{% else %}style="opacity:0"{% endif %} alt="{{ 'Logo' if logo_url else ('QR code' if qr_url else '') }}" class="logo{% if badge_url and not logo_url %} qr{% endif %}" id="logo-img">
     </div>
     </div><!-- .display-frame -->
 
@@ -903,13 +912,13 @@
 
             const isSpecial = !!(customMessage || opts.showQR);
 
-            // Swap logo to QR code when showing easter egg/message content
-            if (isSpecial && QR_URL) {
-                logoImg.src = QR_URL;
-            } else if (LOGO_URL) {
-                logoImg.src = LOGO_URL;
+            // Corner badge: the logo normally, the QR code during easter eggs/messages.
+            // With only one of them configured, that one is always shown.
+            const badgeUrl = isSpecial ? (QR_URL || LOGO_URL) : (LOGO_URL || QR_URL);
+            if (badgeUrl) {
+                logoImg.src = badgeUrl;
+                logoImg.classList.toggle('qr', badgeUrl === QR_URL);
             }
-            logoImg.style.width = '120px';
             
             // Handle custom message
             if (customMessage) {

@@ -27,7 +27,7 @@ Single-file Flask app (`app.py`) with:
 | `templates/display.html` | Frontend display (polls `/api/status`, `/api/version`, `/api/message`) |
 | `templates/message.html` | Coworker message sending UI at `/msg` |
 | `templates/test_menu.html` | Admin hub at `/admin` — all debug tools must be linked here |
-| `static/` | Seasonal backgrounds, generic `logo.svg`; `custom/` and `easter-eggs/` hold personal files (gitignored) |
+| `static/` | Seasonal backgrounds; `custom/` and `easter-eggs/` hold personal files (gitignored) |
 | `.env` | All config — see `.env.example` (calendar, personalization, schedule, server, Cloudflare Access) |
 | `docs/deployment.md` | Pi setup, Cloudflare Tunnel/Access, troubleshooting |
 | `docs/ios-shortcuts.md` | iOS Shortcut setup: location + OOO automation |

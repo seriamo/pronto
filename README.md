@@ -50,7 +50,7 @@ Everything lives in `.env`. See [`.env.example`](.env.example) for the full list
 | `USER_NAME`, `ROOM_NUMBER` | Greeting and location shown on screen |
 | `OOO_KEYWORD` | Event-title prefix that counts as out-of-office (e.g. `jdoe ooo`) |
 | `OFFICE_DAYS`, `OFFICE_HOURS` | Default "in office" schedule |
-| `LOGO_FILE`, `QR_FILE` | Your own images, placed in `static/custom/` (gitignored) |
+| `LOGO_FILE`, `QR_FILE` | Optional corner logo and QR image, placed in `static/custom/` (gitignored). No logo? The QR code takes the corner. |
 | `PUBLIC_URL` | Your tunnel URL; used to generate the "leave a note" QR code |
 
 Drop photos into `static/easter-eggs/` (gitignored) and they'll show behind messages.

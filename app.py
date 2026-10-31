@@ -37,7 +37,7 @@ LOCAL_TZ = pytz.timezone(TIMEZONE)
 ROOM_NUMBER = os.getenv('ROOM_NUMBER', '').strip()
 # Events whose title starts with this keyword (case-insensitive) count as OOO, e.g. "jdoe ooo"
 OOO_KEYWORD = os.getenv('OOO_KEYWORD', '').strip().lower()
-LOGO_FILE = os.getenv('LOGO_FILE', 'logo.svg').strip().lstrip('/')        # relative to static/
+LOGO_FILE = os.getenv('LOGO_FILE', '').strip().lstrip('/')                # relative to static/
 QR_FILE = os.getenv('QR_FILE', '').strip().lstrip('/')                    # relative to static/
 PUBLIC_URL = os.getenv('PUBLIC_URL', '').strip().rstrip('/')              # e.g. https://desk.example.com
 EASTER_EGG_MESSAGE = os.getenv('EASTER_EGG_MESSAGE', '👋 Thanks for stopping by!').strip()
