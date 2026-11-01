@@ -52,8 +52,18 @@ Everything lives in `.env`. See [`.env.example`](.env.example) for the full list
 | `OFFICE_DAYS`, `OFFICE_HOURS` | Default "in office" schedule |
 | `LOGO_FILE`, `QR_FILE` | Optional corner logo and QR image, placed in `static/custom/` (gitignored). No logo? The QR code takes the corner. |
 | `PUBLIC_URL` | Your tunnel URL; used to generate the "leave a note" QR code |
+| `SERIAMO_DIAGNOSTICS` | Optional. `1` sends anonymous reliability events (see below) |
 
 Drop photos into `static/easter-eggs/` (gitignored) and they'll show behind messages.
+
+### Diagnostics (opt-in)
+
+Off by default. With `SERIAMO_DIAGNOSTICS=1`, `seriamo_diagnostics.py` sends two events to `https://telemetry.seriamo.com/v1/events`:
+
+- `service_start` when the app starts
+- `calendar_sync` after each background refresh, with `outcome` set to `ok` or `error`
+
+Each event carries the git commit as the version and `linux` as the platform. There is no device ID, and no calendar URL, meeting data, name or error text is sent. Raw events are deleted after 30 days. Set `SERIAMO_TELEMETRY_URL` to point at another endpoint. See the [Seriamo privacy policy](https://seriamo.com/privacy/).
 
 ## Run it on a Raspberry Pi
 
@@ -90,6 +100,7 @@ templates/          display (kiosk), message (/msg), admin/debug pages
 static/             seasonal backgrounds, logo; custom/ + easter-eggs/ are yours
 deploy_to_pi.sh     rsync deploy · kiosk_setup.sh first-time Pi setup · auto_update.sh weekly OS updates
 docs/               deployment and iOS Shortcut guides
+seriamo_diagnostics.py  opt-in reliability events · test: python -m unittest test_seriamo_diagnostics
 ```
 
 ## License

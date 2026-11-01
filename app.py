@@ -20,6 +20,7 @@ import jwt
 from dotenv import load_dotenv
 from dateutil import rrule
 from dateutil.rrule import rrulestr
+import seriamo_diagnostics
 
 # Load environment variables
 load_dotenv()
@@ -245,8 +246,8 @@ def _background_calendar_refresh():
             else:
                 time.sleep(sleep_duration)
 
-            for i, url in enumerate(ALL_ICS_URLS):
-                _download_calendar(i, url)
+            results = [_download_calendar(i, url) for i, url in enumerate(ALL_ICS_URLS)]
+            seriamo_diagnostics.calendar_sync(all(text is not None for text in results))
 
             label = "business-hours" if _is_business_window() else "off-hours"
             print(f"✅ Background refresh: {len(ALL_ICS_URLS)} cal(s) ({label}, next in {sleep_duration // 60}min)")
@@ -2096,6 +2097,7 @@ if __name__ == '__main__':
     # Start background calendar refresh thread
     refresh_thread = threading.Thread(target=_background_calendar_refresh, daemon=True)
     refresh_thread.start()
+    seriamo_diagnostics.service_start()
 
     if HOST not in ('127.0.0.1', 'localhost', '::1') and not (CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD) and not TRUSTED_NETWORKS:
         print(f"⚠️ Listening on {HOST} without CF_ACCESS_* or TRUSTED_NETWORKS — only localhost can use the app")
